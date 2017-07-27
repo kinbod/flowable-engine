@@ -13,6 +13,8 @@
 
 package org.flowable.compatibility;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
 import java.io.InputStream;
 import java.util.Collection;
 import java.util.Date;
@@ -55,7 +57,6 @@ import org.flowable.engine.delegate.BpmnError;
 import org.flowable.engine.delegate.DelegateExecution;
 import org.flowable.engine.form.StartFormData;
 import org.flowable.engine.impl.cmd.AddIdentityLinkCmd;
-import org.flowable.engine.impl.context.Context;
 import org.flowable.engine.impl.identity.Authentication;
 import org.flowable.engine.impl.persistence.deploy.ProcessDefinitionCacheEntry;
 import org.flowable.engine.impl.persistence.entity.DeploymentEntity;
@@ -66,14 +67,13 @@ import org.flowable.engine.impl.persistence.entity.TaskEntity;
 import org.flowable.engine.impl.persistence.entity.TaskEntityImpl;
 import org.flowable.engine.impl.persistence.entity.VariableInstance;
 import org.flowable.engine.impl.repository.DeploymentBuilderImpl;
+import org.flowable.engine.impl.util.CommandContextUtil;
 import org.flowable.engine.repository.Deployment;
 import org.flowable.engine.repository.ProcessDefinition;
 import org.flowable.engine.runtime.Job;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.engine.task.Attachment;
 import org.flowable.engine.task.Comment;
-
-import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
  * @author Joram Barrez
@@ -942,7 +942,7 @@ public class DefaultFlowable5CompatibilityHandler implements Flowable5Compatibil
         if (processEngine == null) {
             synchronized (this) {
                 if (processEngine == null) {
-                    processEngine = getProcessEngineFactory().buildProcessEngine(Context.getProcessEngineConfiguration());
+                    processEngine = getProcessEngineFactory().buildProcessEngine(CommandContextUtil.getProcessEngineConfiguration());
                 }
             }
         }

@@ -29,7 +29,6 @@ import org.flowable.engine.impl.persistence.entity.ExecutionEntityImpl;
 import org.flowable.engine.impl.persistence.entity.HistoricActivityInstanceEntityImpl;
 import org.flowable.engine.impl.persistence.entity.HistoricDetailAssignmentEntityImpl;
 import org.flowable.engine.impl.persistence.entity.HistoricDetailEntityImpl;
-import org.flowable.engine.impl.persistence.entity.HistoricDetailTransitionInstanceEntityImpl;
 import org.flowable.engine.impl.persistence.entity.HistoricDetailVariableInstanceUpdateEntityImpl;
 import org.flowable.engine.impl.persistence.entity.HistoricFormPropertyEntityImpl;
 import org.flowable.engine.impl.persistence.entity.HistoricIdentityLinkEntityImpl;
@@ -57,8 +56,8 @@ import org.flowable.engine.impl.persistence.entity.VariableInstanceEntityImpl;
  */
 public class EntityDependencyOrder {
 
-    public static List<Class<? extends Entity>> DELETE_ORDER = new ArrayList<Class<? extends Entity>>();
-    public static List<Class<? extends Entity>> INSERT_ORDER = new ArrayList<Class<? extends Entity>>();
+    public static List<Class<? extends Entity>> DELETE_ORDER = new ArrayList<>();
+    public static List<Class<? extends Entity>> INSERT_ORDER = new ArrayList<>();
 
     static {
 
@@ -186,14 +185,13 @@ public class EntityDependencyOrder {
         DELETE_ORDER.add(HistoricVariableInstanceEntityImpl.class);
 
         DELETE_ORDER.add(HistoricDetailAssignmentEntityImpl.class);
-        DELETE_ORDER.add(HistoricDetailTransitionInstanceEntityImpl.class);
         DELETE_ORDER.add(HistoricDetailVariableInstanceUpdateEntityImpl.class);
         DELETE_ORDER.add(HistoricFormPropertyEntityImpl.class);
         DELETE_ORDER.add(HistoricDetailEntityImpl.class);
 
-        INSERT_ORDER = new ArrayList<Class<? extends Entity>>(DELETE_ORDER);
+        INSERT_ORDER = new ArrayList<>(DELETE_ORDER);
         Collections.reverse(INSERT_ORDER);
 
     }
-
+    
 }

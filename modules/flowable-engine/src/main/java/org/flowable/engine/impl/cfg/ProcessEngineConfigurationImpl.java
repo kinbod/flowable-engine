@@ -39,11 +39,9 @@ import org.apache.ibatis.mapping.Environment;
 import org.apache.ibatis.session.Configuration;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.apache.ibatis.transaction.TransactionFactory;
+import org.apache.ibatis.transaction.jdbc.JdbcTransactionFactory;
 import org.apache.ibatis.transaction.managed.ManagedTransactionFactory;
 import org.apache.ibatis.type.JdbcType;
-import org.flowable.content.api.ContentService;
-import org.flowable.dmn.api.DmnRepositoryService;
-import org.flowable.dmn.api.DmnRuleService;
 import org.flowable.engine.CandidateManager;
 import org.flowable.engine.DefaultCandidateManager;
 import org.flowable.engine.DynamicBpmnService;
@@ -60,20 +58,35 @@ import org.flowable.engine.TaskService;
 import org.flowable.engine.app.AppResourceConverter;
 import org.flowable.engine.cfg.ProcessEngineConfigurator;
 import org.flowable.engine.common.api.FlowableException;
+import org.flowable.engine.common.api.delegate.FlowableFunctionDelegate;
 import org.flowable.engine.common.api.delegate.event.FlowableEventDispatcher;
 import org.flowable.engine.common.api.delegate.event.FlowableEventListener;
 import org.flowable.engine.common.impl.cfg.IdGenerator;
-import org.flowable.engine.common.impl.cfg.TransactionContextFactory;
+import org.flowable.engine.common.impl.cfg.standalone.StandaloneMybatisTransactionContextFactory;
+import org.flowable.engine.common.impl.db.DbSqlSessionFactory;
+import org.flowable.engine.common.impl.event.FlowableEventDispatcherImpl;
+import org.flowable.engine.common.impl.interceptor.Command;
 import org.flowable.engine.common.impl.interceptor.CommandConfig;
+import org.flowable.engine.common.impl.interceptor.CommandContext;
+import org.flowable.engine.common.impl.interceptor.CommandContextFactory;
+import org.flowable.engine.common.impl.interceptor.CommandContextInterceptor;
+import org.flowable.engine.common.impl.interceptor.CommandExecutor;
+import org.flowable.engine.common.impl.interceptor.CommandInterceptor;
+import org.flowable.engine.common.impl.interceptor.EngineConfigurationConstants;
+import org.flowable.engine.common.impl.interceptor.LogInterceptor;
 import org.flowable.engine.common.impl.interceptor.SessionFactory;
-import org.flowable.engine.common.impl.transaction.ContextAwareJdbcTransactionFactory;
+import org.flowable.engine.common.impl.interceptor.TransactionContextInterceptor;
+import org.flowable.engine.common.impl.persistence.GenericManagerFactory;
+import org.flowable.engine.common.impl.persistence.cache.EntityCache;
+import org.flowable.engine.common.impl.persistence.cache.EntityCacheImpl;
+import org.flowable.engine.common.impl.persistence.entity.Entity;
+import org.flowable.engine.common.impl.util.ReflectUtil;
 import org.flowable.engine.common.runtime.Clock;
 import org.flowable.engine.compatibility.DefaultFlowable5CompatibilityHandlerFactory;
 import org.flowable.engine.compatibility.Flowable5CompatibilityHandler;
 import org.flowable.engine.compatibility.Flowable5CompatibilityHandlerFactory;
-import org.flowable.engine.delegate.FlowableFunctionDelegate;
 import org.flowable.engine.delegate.event.FlowableEngineEventType;
-import org.flowable.engine.delegate.event.impl.FlowableEventDispatcherImpl;
+import org.flowable.engine.delegate.event.impl.BpmnModelEventDispatchAction;
 import org.flowable.engine.form.AbstractFormType;
 import org.flowable.engine.impl.DynamicBpmnServiceImpl;
 import org.flowable.engine.impl.FormServiceImpl;
@@ -86,6 +99,7 @@ import org.flowable.engine.impl.RuntimeServiceImpl;
 import org.flowable.engine.impl.SchemaOperationProcessEngineClose;
 import org.flowable.engine.impl.ServiceImpl;
 import org.flowable.engine.impl.TaskServiceImpl;
+import org.flowable.engine.impl.agenda.AgendaSessionFactory;
 import org.flowable.engine.impl.agenda.DefaultFlowableEngineAgendaFactory;
 import org.flowable.engine.impl.app.AppDeployer;
 import org.flowable.engine.impl.app.AppResourceConverterImpl;
@@ -148,15 +162,14 @@ import org.flowable.engine.impl.calendar.CycleBusinessCalendar;
 import org.flowable.engine.impl.calendar.DueDateBusinessCalendar;
 import org.flowable.engine.impl.calendar.DurationBusinessCalendar;
 import org.flowable.engine.impl.calendar.MapBusinessCalendarManager;
-import org.flowable.engine.impl.cfg.standalone.StandaloneMybatisTransactionContextFactory;
 import org.flowable.engine.impl.cmd.RedeployV5ProcessDefinitionsCmd;
 import org.flowable.engine.impl.cmd.ValidateExecutionRelatedEntityCountCfgCmd;
 import org.flowable.engine.impl.cmd.ValidateTaskRelatedEntityCountCfgCmd;
 import org.flowable.engine.impl.cmd.ValidateV5EntitiesCmd;
-import org.flowable.engine.impl.context.Context;
 import org.flowable.engine.impl.db.DbIdGenerator;
-import org.flowable.engine.impl.db.DbSqlSessionFactory;
+import org.flowable.engine.impl.db.EntityDependencyOrder;
 import org.flowable.engine.impl.db.IbatisVariableTypeHandler;
+import org.flowable.engine.impl.db.ProcessDbSchemaManager;
 import org.flowable.engine.impl.delegate.invocation.DefaultDelegateInterceptor;
 import org.flowable.engine.impl.el.DefaultExpressionManager;
 import org.flowable.engine.impl.el.ExpressionManager;
@@ -185,16 +198,10 @@ import org.flowable.engine.impl.history.async.AsyncHistorySession;
 import org.flowable.engine.impl.history.async.AsyncHistorySessionFactory;
 import org.flowable.engine.impl.history.async.DefaultAsyncHistoryJobExecutor;
 import org.flowable.engine.impl.history.async.DefaultAsyncHistoryJobProducer;
-import org.flowable.engine.impl.interceptor.CommandContext;
-import org.flowable.engine.impl.interceptor.CommandContextFactory;
-import org.flowable.engine.impl.interceptor.CommandContextInterceptor;
-import org.flowable.engine.impl.interceptor.CommandExecutor;
-import org.flowable.engine.impl.interceptor.CommandInterceptor;
+import org.flowable.engine.impl.interceptor.BpmnOverrideContextInterceptor;
 import org.flowable.engine.impl.interceptor.CommandInvoker;
 import org.flowable.engine.impl.interceptor.DelegateInterceptor;
-import org.flowable.engine.impl.interceptor.LogInterceptor;
 import org.flowable.engine.impl.interceptor.LoggingExecutionTreeCommandInvoker;
-import org.flowable.engine.impl.interceptor.TransactionContextInterceptor;
 import org.flowable.engine.impl.jobexecutor.AsyncContinuationJobHandler;
 import org.flowable.engine.impl.jobexecutor.DefaultFailedJobCommandFactory;
 import org.flowable.engine.impl.jobexecutor.FailedJobCommandFactory;
@@ -205,9 +212,6 @@ import org.flowable.engine.impl.jobexecutor.TimerActivateProcessDefinitionHandle
 import org.flowable.engine.impl.jobexecutor.TimerStartEventJobHandler;
 import org.flowable.engine.impl.jobexecutor.TimerSuspendProcessDefinitionHandler;
 import org.flowable.engine.impl.jobexecutor.TriggerTimerEventJobHandler;
-import org.flowable.engine.impl.persistence.GenericManagerFactory;
-import org.flowable.engine.impl.persistence.cache.EntityCache;
-import org.flowable.engine.impl.persistence.cache.EntityCacheImpl;
 import org.flowable.engine.impl.persistence.deploy.DefaultDeploymentCache;
 import org.flowable.engine.impl.persistence.deploy.Deployer;
 import org.flowable.engine.impl.persistence.deploy.DeploymentCache;
@@ -224,6 +228,7 @@ import org.flowable.engine.impl.persistence.entity.DeadLetterJobEntityManager;
 import org.flowable.engine.impl.persistence.entity.DeadLetterJobEntityManagerImpl;
 import org.flowable.engine.impl.persistence.entity.DeploymentEntityManager;
 import org.flowable.engine.impl.persistence.entity.DeploymentEntityManagerImpl;
+import org.flowable.engine.impl.persistence.entity.EventLogEntryEntityImpl;
 import org.flowable.engine.impl.persistence.entity.EventLogEntryEntityManager;
 import org.flowable.engine.impl.persistence.entity.EventLogEntryEntityManagerImpl;
 import org.flowable.engine.impl.persistence.entity.EventSubscriptionEntityManager;
@@ -326,7 +331,6 @@ import org.flowable.engine.impl.scripting.ScriptBindingsFactory;
 import org.flowable.engine.impl.scripting.ScriptingEngines;
 import org.flowable.engine.impl.scripting.VariableScopeResolverFactory;
 import org.flowable.engine.impl.util.ProcessInstanceHelper;
-import org.flowable.engine.impl.util.ReflectUtil;
 import org.flowable.engine.impl.variable.BooleanType;
 import org.flowable.engine.impl.variable.ByteArrayType;
 import org.flowable.engine.impl.variable.CustomObjectType;
@@ -352,8 +356,6 @@ import org.flowable.engine.impl.variable.UUIDType;
 import org.flowable.engine.impl.variable.VariableType;
 import org.flowable.engine.impl.variable.VariableTypes;
 import org.flowable.engine.parse.BpmnParseHandler;
-import org.flowable.form.api.FormRepositoryService;
-import org.flowable.idm.api.IdmIdentityService;
 import org.flowable.image.impl.DefaultProcessDiagramGenerator;
 import org.flowable.validation.ProcessValidator;
 import org.flowable.validation.ProcessValidatorFactory;
@@ -388,39 +390,8 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
     protected ManagementService managementService = new ManagementServiceImpl();
     protected DynamicBpmnService dynamicBpmnService = new DynamicBpmnServiceImpl(this);
 
-    // IDM ENGINE SERVICES /////////////////////////////////////////////////////
+    // IDM ENGINE /////////////////////////////////////////////////////
     protected boolean disableIdmEngine;
-    protected boolean idmEngineInitialized;
-    protected IdmIdentityService idmIdentityService;
-
-    // FORM ENGINE SERVICES /////////////////////////////////////////////////////
-    protected boolean formEngineInitialized;
-    protected FormRepositoryService formEngineRepositoryService;
-    protected org.flowable.form.api.FormService formEngineFormService;
-
-    // DMN ENGINE SERVICES /////////////////////////////////////////////////////
-    protected boolean dmnEngineInitialized;
-    protected DmnRepositoryService dmnEngineRepositoryService;
-    protected DmnRuleService dmnEngineRuleService;
-
-    // CONTENT ENGINE SERVICES /////////////////////////////////////////////////////
-    protected boolean contentEngineInitialized;
-    protected ContentService contentService;
-
-    // COMMAND EXECUTORS ////////////////////////////////////////////////////////
-
-    protected CommandInterceptor commandInvoker;
-
-    /**
-     * the configurable list which will be {@link #initInterceptorChain(java.util.List) processed} to build the {@link #commandExecutor}
-     */
-    protected List<CommandInterceptor> customPreCommandInterceptors;
-    protected List<CommandInterceptor> customPostCommandInterceptors;
-
-    protected List<CommandInterceptor> commandInterceptors;
-
-    /** this will be initialized during the configurationComplete() */
-    protected CommandExecutor commandExecutor;
 
     // DATA MANAGERS /////////////////////////////////////////////////////////////
 
@@ -498,10 +469,6 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
     // Job Manager
 
     protected JobManager jobManager;
-
-    // SESSION FACTORIES /////////////////////////////////////////////////////////
-
-    protected DbSqlSessionFactory dbSqlSessionFactory;
 
     // CONFIGURATORS ////////////////////////////////////////////////////////////
 
@@ -768,10 +735,7 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
     protected int historicProcessInstancesQueryLimit = 20000;
 
     protected String wsSyncFactoryClassName = DEFAULT_WS_SYNC_FACTORY;
-    protected ConcurrentMap<QName, URL> wsOverridenEndpointAddresses = new ConcurrentHashMap<QName, URL>();
-
-    protected CommandContextFactory commandContextFactory;
-    protected TransactionContextFactory<TransactionListener, CommandContext> transactionContextFactory;
+    protected ConcurrentMap<QName, URL> wsOverridenEndpointAddresses = new ConcurrentHashMap<>();
 
     protected DelegateInterceptor delegateInterceptor;
 
@@ -870,9 +834,13 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
 
         // trigger build of Flowable 5 Engine
         if (flowable5CompatibilityEnabled && flowable5CompatibilityHandler != null) {
-            Context.setProcessEngineConfiguration(processEngine.getProcessEngineConfiguration());
-            flowable5CompatibilityHandler.getRawProcessEngine();
-            Context.removeProcessEngineConfiguration();
+            commandExecutor.execute(new Command<Void>() {
+                @Override
+                public Void execute(CommandContext commandContext) {
+                    flowable5CompatibilityHandler.getRawProcessEngine();
+                    return null;
+                }
+            });
         }
 
         postProcessEngineInitialisation();
@@ -895,6 +863,7 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
 
         if (usingRelationalDatabase) {
             initDataSource();
+            initDbSchemaManager();
         }
 
         initHelpers();
@@ -977,11 +946,15 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
 
     public void initCommandInterceptors() {
         if (commandInterceptors == null) {
-            commandInterceptors = new ArrayList<CommandInterceptor>();
+            commandInterceptors = new ArrayList<>();
             if (customPreCommandInterceptors != null) {
                 commandInterceptors.addAll(customPreCommandInterceptors);
             }
+            
             commandInterceptors.addAll(getDefaultCommandInterceptors());
+            
+            commandInterceptors.add(new BpmnOverrideContextInterceptor());
+            
             if (customPostCommandInterceptors != null) {
                 commandInterceptors.addAll(customPostCommandInterceptors);
             }
@@ -990,44 +963,32 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
     }
 
     public Collection<? extends CommandInterceptor> getDefaultCommandInterceptors() {
-        List<CommandInterceptor> interceptors = new ArrayList<CommandInterceptor>();
-        interceptors.add(new LogInterceptor());
-
-        CommandInterceptor transactionInterceptor = createTransactionInterceptor();
-        if (transactionInterceptor != null) {
-            interceptors.add(transactionInterceptor);
+        if (defaultCommandInterceptors == null) {
+            List<CommandInterceptor> interceptors = new ArrayList<>();
+            interceptors.add(new LogInterceptor());
+    
+            CommandInterceptor transactionInterceptor = createTransactionInterceptor();
+            if (transactionInterceptor != null) {
+                interceptors.add(transactionInterceptor);
+            }
+    
+            if (commandContextFactory != null) {
+                CommandContextInterceptor commandContextInterceptor = new CommandContextInterceptor(commandContextFactory);
+                engineConfigurations.put(EngineConfigurationConstants.KEY_PROCESS_ENGINE_CONFIG, this);
+                commandContextInterceptor.setEngineConfigurations(engineConfigurations);
+                commandContextInterceptor.setCurrentEngineConfigurationKey(EngineConfigurationConstants.KEY_PROCESS_ENGINE_CONFIG);
+                interceptors.add(commandContextInterceptor);
+            }
+    
+            if (transactionContextFactory != null) {
+                interceptors.add(new TransactionContextInterceptor(transactionContextFactory));
+            }
+    
+            defaultCommandInterceptors = interceptors;
         }
-
-        if (commandContextFactory != null) {
-            interceptors.add(new CommandContextInterceptor(commandContextFactory, this));
-        }
-
-        if (transactionContextFactory != null) {
-            interceptors.add(new TransactionContextInterceptor(transactionContextFactory));
-        }
-
-        return interceptors;
+        return defaultCommandInterceptors;
     }
-
-    public void initCommandExecutor() {
-        if (commandExecutor == null) {
-            CommandInterceptor first = initInterceptorChain(commandInterceptors);
-            commandExecutor = new CommandExecutorImpl(getDefaultCommandConfig(), first);
-        }
-    }
-
-    public CommandInterceptor initInterceptorChain(List<CommandInterceptor> chain) {
-        if (chain == null || chain.isEmpty()) {
-            throw new FlowableException("invalid command interceptor chain configuration: " + chain);
-        }
-        for (int i = 0; i < chain.size() - 1; i++) {
-            chain.get(i).setNext(chain.get(i + 1));
-        }
-        return chain.get(0);
-    }
-
-    public abstract CommandInterceptor createTransactionInterceptor();
-
+    
     // services
     // /////////////////////////////////////////////////////////////////
 
@@ -1057,6 +1018,12 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
             maxNrOfStatementsInBulkInsert = DEFAULT_MAX_NR_OF_STATEMENTS_BULK_INSERT_SQL_SERVER;
         }
     }
+    
+    public void initDbSchemaManager() {
+        if (this.dbSchemaManager == null) {
+            this.dbSchemaManager = new ProcessDbSchemaManager();
+        }
+    }
 
     @Override
     public Configuration initMybatisConfiguration(Environment environment, Reader reader, Properties properties) {
@@ -1072,7 +1039,7 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
         initMybatisTypeHandlers(configuration);
         initCustomMybatisMappers(configuration);
 
-        configuration = parseMybatisConfiguration(configuration, parser);
+        configuration = parseMybatisConfiguration(parser);
         return configuration;
     }
 
@@ -1300,7 +1267,7 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
 
     public void initSessionFactories() {
         if (sessionFactories == null) {
-            sessionFactories = new HashMap<Class<?>, SessionFactory>();
+            sessionFactories = new HashMap<>();
 
             if (usingRelationalDatabase) {
                 initDbSqlSessionFactory();
@@ -1309,8 +1276,14 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
             if (isAsyncHistoryEnabled) {
                 initAsyncHistorySessionFactory();
             }
+            
+            if (agendaFactory != null) {
+                addSessionFactory(new AgendaSessionFactory(agendaFactory));
+            }
 
             addSessionFactory(new GenericManagerFactory(EntityCache.class, EntityCacheImpl.class));
+            
+            commandContextFactory.setSessionFactories(sessionFactories);
         }
 
         if (customSessionFactories != null) {
@@ -1318,6 +1291,7 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
                 addSessionFactory(sessionFactory);
             }
         }
+
     }
 
     public void initDbSqlSessionFactory() {
@@ -1332,9 +1306,31 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
         dbSqlSessionFactory.setTablePrefixIsSchema(tablePrefixIsSchema);
         dbSqlSessionFactory.setDatabaseCatalog(databaseCatalog);
         dbSqlSessionFactory.setDatabaseSchema(databaseSchema);
-        dbSqlSessionFactory.setBulkInsertEnabled(isBulkInsertEnabled, databaseType);
         dbSqlSessionFactory.setMaxNrOfStatementsInBulkInsert(maxNrOfStatementsInBulkInsert);
+        
+        initDbSqlSessionFactoryEntitySettings();
+        
         addSessionFactory(dbSqlSessionFactory);
+    }
+
+    protected void initDbSqlSessionFactoryEntitySettings() {
+        for (Class<? extends Entity> clazz : EntityDependencyOrder.INSERT_ORDER) {
+            // All entities except one of the bpmn engine are bulk inserteable
+            dbSqlSessionFactory.getInsertionOrder().add(clazz);
+            
+            if (isBulkInsertEnabled) {
+                dbSqlSessionFactory.getBulkInserteableEntityClasses().add(clazz);
+            }
+        }
+        
+        // Oracle doesn't support bulk inserting for event log entries
+        if (isBulkInsertEnabled && "oracle".equals(databaseType)) {
+            dbSqlSessionFactory.getBulkInserteableEntityClasses().remove(EventLogEntryEntityImpl.class);
+        }
+        
+        for (Class<? extends Entity> clazz : EntityDependencyOrder.DELETE_ORDER) {
+            dbSqlSessionFactory.getDeletionOrder().add(clazz);
+        }
     }
 
     public DbSqlSessionFactory createDbSqlSessionFactory() {
@@ -1359,7 +1355,7 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
 
     public void initConfigurators() {
 
-        allConfigurators = new ArrayList<ProcessEngineConfigurator>();
+        allConfigurators = new ArrayList<>();
 
         if (!disableIdmEngine) {
             if (idmProcessEngineConfigurator != null) {
@@ -1442,9 +1438,9 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
     public void initProcessDefinitionCache() {
         if (processDefinitionCache == null) {
             if (processDefinitionCacheLimit <= 0) {
-                processDefinitionCache = new DefaultDeploymentCache<ProcessDefinitionCacheEntry>();
+                processDefinitionCache = new DefaultDeploymentCache<>();
             } else {
-                processDefinitionCache = new DefaultDeploymentCache<ProcessDefinitionCacheEntry>(processDefinitionCacheLimit);
+                processDefinitionCache = new DefaultDeploymentCache<>(processDefinitionCacheLimit);
             }
         }
     }
@@ -1462,9 +1458,9 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
     public void initAppResourceCache() {
         if (appResourceCache == null) {
             if (appResourceCacheLimit <= 0) {
-                appResourceCache = new DefaultDeploymentCache<Object>();
+                appResourceCache = new DefaultDeploymentCache<>();
             } else {
-                appResourceCache = new DefaultDeploymentCache<Object>(appResourceCacheLimit);
+                appResourceCache = new DefaultDeploymentCache<>(appResourceCacheLimit);
             }
         }
     }
@@ -1472,16 +1468,16 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
     public void initKnowledgeBaseCache() {
         if (knowledgeBaseCache == null) {
             if (knowledgeBaseCacheLimit <= 0) {
-                knowledgeBaseCache = new DefaultDeploymentCache<Object>();
+                knowledgeBaseCache = new DefaultDeploymentCache<>();
             } else {
-                knowledgeBaseCache = new DefaultDeploymentCache<Object>(knowledgeBaseCacheLimit);
+                knowledgeBaseCache = new DefaultDeploymentCache<>(knowledgeBaseCacheLimit);
             }
         }
     }
 
     public void initDeployers() {
         if (this.deployers == null) {
-            this.deployers = new ArrayList<Deployer>();
+            this.deployers = new ArrayList<>();
             if (customPreDeployers != null) {
                 this.deployers.addAll(customPreDeployers);
             }
@@ -1546,7 +1542,7 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
     }
 
     public Collection<? extends Deployer> getDefaultDeployers() {
-        List<Deployer> defaultDeployers = new ArrayList<Deployer>();
+        List<Deployer> defaultDeployers = new ArrayList<>();
 
         if (bpmnDeployer == null) {
             bpmnDeployer = new BpmnDeployer();
@@ -1604,7 +1600,7 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
         bpmnParser.setActivityBehaviorFactory(activityBehaviorFactory);
         bpmnParser.setListenerFactory(listenerFactory);
 
-        List<BpmnParseHandler> parseHandlers = new ArrayList<BpmnParseHandler>();
+        List<BpmnParseHandler> parseHandlers = new ArrayList<>();
         if (getPreBpmnParseHandlers() != null) {
             parseHandlers.addAll(getPreBpmnParseHandlers());
         }
@@ -1621,7 +1617,7 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
     public List<BpmnParseHandler> getDefaultBpmnParseHandlers() {
 
         // Alphabetic list of default parse handler classes
-        List<BpmnParseHandler> bpmnParserHandlers = new ArrayList<BpmnParseHandler>();
+        List<BpmnParseHandler> bpmnParserHandlers = new ArrayList<>();
         bpmnParserHandlers.add(new BoundaryEventParseHandler());
         bpmnParserHandlers.add(new BusinessRuleParseHandler());
         bpmnParserHandlers.add(new CallActivityParseHandler());
@@ -1657,7 +1653,7 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
         // Replace any default handler if the user wants to replace them
         if (customDefaultBpmnParseHandlers != null) {
 
-            Map<Class<?>, BpmnParseHandler> customParseHandlerMap = new HashMap<Class<?>, BpmnParseHandler>();
+            Map<Class<?>, BpmnParseHandler> customParseHandlerMap = new HashMap<>();
             for (BpmnParseHandler bpmnParseHandler : customDefaultBpmnParseHandlers) {
                 for (Class<?> handledType : bpmnParseHandler.getHandledTypes()) {
                     customParseHandlerMap.put(handledType, bpmnParseHandler);
@@ -1695,7 +1691,7 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
     }
 
     public void initJobHandlers() {
-        jobHandlers = new HashMap<String, JobHandler>();
+        jobHandlers = new HashMap<>();
 
         AsyncContinuationJobHandler asyncContinuationJobHandler = new AsyncContinuationJobHandler();
         jobHandlers.put(asyncContinuationJobHandler.getType(), asyncContinuationJobHandler);
@@ -1725,7 +1721,7 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
     
     protected void initHistoryJobHandlers() {
         if (isAsyncHistoryEnabled) {
-            historyJobHandlers = new HashMap<String, HistoryJobHandler>();
+            historyJobHandlers = new HashMap<>();
             
             AsyncHistoryJobHandler asyncHistoryJobHandler = new AsyncHistoryJobHandler();
             asyncHistoryJobHandler.initDefaultTransformers();
@@ -1872,7 +1868,6 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
         if (commandContextFactory == null) {
             commandContextFactory = new CommandContextFactory();
         }
-        commandContextFactory.setProcessEngineConfiguration(this);
     }
 
     public void initTransactionContextFactory() {
@@ -1887,7 +1882,7 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
             if (transactionsExternallyManaged) {
                 transactionFactory = new ManagedTransactionFactory();
             } else {
-                transactionFactory = new ContextAwareJdbcTransactionFactory(); // Special for process engine! ContextAware vs regular JdbcTransactionFactory
+                transactionFactory = new JdbcTransactionFactory();
             }
         }
     }
@@ -1949,7 +1944,7 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
 
     public void initFormEngines() {
         if (formEngines == null) {
-            formEngines = new HashMap<String, FormEngine>();
+            formEngines = new HashMap<>();
             FormEngine defaultFormEngine = new JuelFormEngine();
             formEngines.put(null, defaultFormEngine); // default form engine is
                                                       // looked up with null
@@ -1980,7 +1975,7 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
 
     public void initScriptingEngines() {
         if (resolverFactories == null) {
-            resolverFactories = new ArrayList<ResolverFactory>();
+            resolverFactories = new ArrayList<>();
             resolverFactories.add(new VariableScopeResolverFactory());
             resolverFactories.add(new BeansResolverFactory());
         }
@@ -2022,7 +2017,7 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
 
     public void initEventHandlers() {
         if (eventHandlers == null) {
-            eventHandlers = new HashMap<String, EventHandler>();
+            eventHandlers = new HashMap<>();
 
             SignalEventHandler signalEventHandler = new SignalEventHandler();
             eventHandlers.put(signalEventHandler.getEventHandlerType(), signalEventHandler);
@@ -2075,6 +2070,11 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
     public void initEventDispatcher() {
         if (this.eventDispatcher == null) {
             this.eventDispatcher = new FlowableEventDispatcherImpl();
+        }
+        
+        if (this.additionalEventDispatchActions == null) {
+            this.additionalEventDispatchActions = new ArrayList<>();
+            this.additionalEventDispatchActions.add(new BpmnModelEventDispatchAction());
         }
 
         this.eventDispatcher.setEnabled(enableEventDispatcher);
@@ -2206,15 +2206,6 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
         return this;
     }
 
-    public CommandInterceptor getCommandInvoker() {
-        return commandInvoker;
-    }
-
-    public ProcessEngineConfigurationImpl setCommandInvoker(CommandInterceptor commandInvoker) {
-        this.commandInvoker = commandInvoker;
-        return this;
-    }
-
     public List<CommandInterceptor> getCustomPreCommandInterceptors() {
         return customPreCommandInterceptors;
     }
@@ -2239,15 +2230,6 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
 
     public ProcessEngineConfigurationImpl setCommandInterceptors(List<CommandInterceptor> commandInterceptors) {
         this.commandInterceptors = commandInterceptors;
-        return this;
-    }
-
-    public CommandExecutor getCommandExecutor() {
-        return commandExecutor;
-    }
-
-    public ProcessEngineConfigurationImpl setCommandExecutor(CommandExecutor commandExecutor) {
-        this.commandExecutor = commandExecutor;
         return this;
     }
 
@@ -2344,96 +2326,6 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
         return this;
     }
 
-    public boolean isIdmEngineInitialized() {
-        return idmEngineInitialized;
-    }
-
-    public ProcessEngineConfigurationImpl setIdmEngineInitialized(boolean idmEngineInitialized) {
-        this.idmEngineInitialized = idmEngineInitialized;
-        return this;
-    }
-
-    public IdmIdentityService getIdmIdentityService() {
-        return idmIdentityService;
-    }
-
-    public ProcessEngineConfigurationImpl setIdmIdentityService(IdmIdentityService idmIdentityService) {
-        this.idmIdentityService = idmIdentityService;
-        return this;
-    }
-
-    public boolean isFormEngineInitialized() {
-        return formEngineInitialized;
-    }
-
-    public ProcessEngineConfigurationImpl setFormEngineInitialized(boolean formEngineInitialized) {
-        this.formEngineInitialized = formEngineInitialized;
-        return this;
-    }
-
-    public FormRepositoryService getFormEngineRepositoryService() {
-        return formEngineRepositoryService;
-    }
-
-    public ProcessEngineConfigurationImpl setFormEngineRepositoryService(FormRepositoryService formEngineRepositoryService) {
-        this.formEngineRepositoryService = formEngineRepositoryService;
-        return this;
-    }
-
-    public org.flowable.form.api.FormService getFormEngineFormService() {
-        return formEngineFormService;
-    }
-
-    public ProcessEngineConfigurationImpl setFormEngineFormService(org.flowable.form.api.FormService formEngineFormService) {
-        this.formEngineFormService = formEngineFormService;
-        return this;
-    }
-
-    public boolean isDmnEngineInitialized() {
-        return dmnEngineInitialized;
-    }
-
-    public ProcessEngineConfigurationImpl setDmnEngineInitialized(boolean dmnEngineInitialized) {
-        this.dmnEngineInitialized = dmnEngineInitialized;
-        return this;
-    }
-
-    public DmnRepositoryService getDmnEngineRepositoryService() {
-        return dmnEngineRepositoryService;
-    }
-
-    public ProcessEngineConfigurationImpl setDmnEngineRepositoryService(DmnRepositoryService dmnEngineRepositoryService) {
-        this.dmnEngineRepositoryService = dmnEngineRepositoryService;
-        return this;
-    }
-
-    public DmnRuleService getDmnEngineRuleService() {
-        return dmnEngineRuleService;
-    }
-
-    public ProcessEngineConfigurationImpl setDmnEngineRuleService(DmnRuleService dmnEngineRuleService) {
-        this.dmnEngineRuleService = dmnEngineRuleService;
-        return this;
-    }
-
-    public boolean isContentEngineInitialized() {
-        return contentEngineInitialized;
-    }
-
-    public ProcessEngineConfigurationImpl setContentEngineInitialized(boolean contentEngineInitialized) {
-        this.contentEngineInitialized = contentEngineInitialized;
-        return this;
-    }
-
-    public ContentService getContentService() {
-        return contentService;
-    }
-
-    public ProcessEngineConfigurationImpl setContentService(ContentService contentService) {
-        this.contentService = contentService;
-        return this;
-    }
-
     @Override
     public ProcessEngineConfigurationImpl setSessionFactories(Map<Class<?>, SessionFactory> sessionFactories) {
         this.sessionFactories = sessionFactories;
@@ -2446,7 +2338,7 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
 
     public ProcessEngineConfigurationImpl addConfigurator(ProcessEngineConfigurator configurator) {
         if (this.configurators == null) {
-            this.configurators = new ArrayList<ProcessEngineConfigurator>();
+            this.configurators = new ArrayList<>();
         }
         this.configurators.add(configurator);
         return this;
@@ -2698,26 +2590,6 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
         return this;
     }
 
-    public CommandContextFactory getCommandContextFactory() {
-        return commandContextFactory;
-    }
-
-    public ProcessEngineConfigurationImpl setCommandContextFactory(CommandContextFactory commandContextFactory) {
-        this.commandContextFactory = commandContextFactory;
-        return this;
-    }
-
-    public TransactionContextFactory<TransactionListener, CommandContext> getTransactionContextFactory() {
-        return transactionContextFactory;
-    }
-
-    public ProcessEngineConfigurationImpl setTransactionContextFactory(
-            TransactionContextFactory<TransactionListener, CommandContext> transactionContextFactory) {
-
-        this.transactionContextFactory = transactionContextFactory;
-        return this;
-    }
-
     public FlowableEngineAgendaFactory getAgendaFactory() {
         return agendaFactory;
     }
@@ -2784,15 +2656,6 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
     @Override
     public ProcessEngineConfigurationImpl setSqlSessionFactory(SqlSessionFactory sqlSessionFactory) {
         this.sqlSessionFactory = sqlSessionFactory;
-        return this;
-    }
-
-    public DbSqlSessionFactory getDbSqlSessionFactory() {
-        return dbSqlSessionFactory;
-    }
-
-    public ProcessEngineConfigurationImpl setDbSqlSessionFactory(DbSqlSessionFactory dbSqlSessionFactory) {
-        this.dbSqlSessionFactory = dbSqlSessionFactory;
         return this;
     }
 

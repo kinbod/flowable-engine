@@ -32,7 +32,7 @@ import org.flowable.engine.common.EngineInfo;
 import org.flowable.engine.common.api.FlowableException;
 import org.flowable.engine.common.api.FlowableIllegalArgumentException;
 import org.flowable.engine.common.impl.util.IoUtil;
-import org.flowable.engine.impl.util.ReflectUtil;
+import org.flowable.engine.common.impl.util.ReflectUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,10 +59,10 @@ public abstract class ProcessEngines {
     public static final String NAME_DEFAULT = "default";
 
     protected static boolean isInitialized;
-    protected static Map<String, ProcessEngine> processEngines = new HashMap<String, ProcessEngine>();
-    protected static Map<String, EngineInfo> processEngineInfosByName = new HashMap<String, EngineInfo>();
-    protected static Map<String, EngineInfo> processEngineInfosByResourceUrl = new HashMap<String, EngineInfo>();
-    protected static List<EngineInfo> processEngineInfos = new ArrayList<EngineInfo>();
+    protected static Map<String, ProcessEngine> processEngines = new HashMap<>();
+    protected static Map<String, EngineInfo> processEngineInfosByName = new HashMap<>();
+    protected static Map<String, EngineInfo> processEngineInfosByResourceUrl = new HashMap<>();
+    protected static List<EngineInfo> processEngineInfos = new ArrayList<>();
 
     /**
      * Initializes all process engines that can be found on the classpath for resources <code>flowable.cfg.xml</code> (plain Flowable style configuration) and for resources
@@ -71,9 +71,8 @@ public abstract class ProcessEngines {
     public static synchronized void init() {
         if (!isInitialized()) {
             if (processEngines == null) {
-                // Create new map to store process-engines if current map is
-                // null
-                processEngines = new HashMap<String, ProcessEngine>();
+                // Create new map to store process-engines if current map is null
+                processEngines = new HashMap<>();
             }
             ClassLoader classLoader = ReflectUtil.getClassLoader();
             Enumeration<URL> resources = null;
@@ -86,7 +85,7 @@ public abstract class ProcessEngines {
             // Remove duplicated configuration URL's using set. Some
             // classloaders may return identical URL's twice, causing duplicate
             // startups
-            Set<URL> configUrls = new HashSet<URL>();
+            Set<URL> configUrls = new HashSet<>();
             while (resources.hasMoreElements()) {
                 configUrls.add(resources.nextElement());
             }
@@ -251,8 +250,8 @@ public abstract class ProcessEngines {
      */
     public static synchronized void destroy() {
         if (isInitialized()) {
-            Map<String, ProcessEngine> engines = new HashMap<String, ProcessEngine>(processEngines);
-            processEngines = new HashMap<String, ProcessEngine>();
+            Map<String, ProcessEngine> engines = new HashMap<>(processEngines);
+            processEngines = new HashMap<>();
 
             for (String processEngineName : engines.keySet()) {
                 ProcessEngine processEngine = engines.get(processEngineName);

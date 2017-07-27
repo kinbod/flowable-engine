@@ -19,14 +19,13 @@ import java.util.HashMap;
 
 import org.apache.commons.lang3.StringUtils;
 import org.flowable.engine.common.impl.persistence.entity.AbstractEntity;
-import org.flowable.engine.impl.db.BulkDeleteable;
 import org.flowable.engine.impl.variable.VariableType;
 
 /**
  * @author Christian Lipphardt (camunda)
  * @author Joram Barrez
  */
-public class HistoricVariableInstanceEntityImpl extends AbstractEntity implements HistoricVariableInstanceEntity, BulkDeleteable, Serializable {
+public class HistoricVariableInstanceEntityImpl extends AbstractEntity implements HistoricVariableInstanceEntity, Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -54,7 +53,7 @@ public class HistoricVariableInstanceEntityImpl extends AbstractEntity implement
 
     @Override
     public Object getPersistentState() {
-        HashMap<String, Object> persistentState = new HashMap<String, Object>();
+        HashMap<String, Object> persistentState = new HashMap<>();
 
         persistentState.put("name", name);
         persistentState.put("textValue", textValue);

@@ -22,7 +22,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.flowable.engine.ProcessEngineConfiguration;
 import org.flowable.engine.common.api.FlowableException;
 import org.flowable.engine.common.impl.persistence.entity.AbstractEntity;
-import org.flowable.engine.impl.db.BulkDeleteable;
 import org.flowable.engine.runtime.JobInfo;
 
 /**
@@ -30,7 +29,7 @@ import org.flowable.engine.runtime.JobInfo;
  *
  * @author Tijs Rademakers
  */
-public abstract class AbstractJobEntityImpl extends AbstractEntity implements AbstractRuntimeJobEntity, BulkDeleteable, Serializable {
+public abstract class AbstractJobEntityImpl extends AbstractEntity implements AbstractRuntimeJobEntity, Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -59,7 +58,7 @@ public abstract class AbstractJobEntityImpl extends AbstractEntity implements Ab
     protected String jobType;
 
     public Object getPersistentState() {
-        Map<String, Object> persistentState = new HashMap<String, Object>();
+        Map<String, Object> persistentState = new HashMap<>();
         persistentState.put("retries", retries);
         persistentState.put("createTime", createTime);
         persistentState.put("duedate", duedate);

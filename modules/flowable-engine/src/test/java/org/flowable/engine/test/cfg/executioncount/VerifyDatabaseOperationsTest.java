@@ -16,12 +16,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.flowable.engine.common.impl.cfg.CommandExecutorImpl;
+import org.flowable.engine.common.impl.db.DbSqlSessionFactory;
+import org.flowable.engine.common.impl.interceptor.CommandInterceptor;
 import org.flowable.engine.history.HistoricActivityInstance;
-import org.flowable.engine.impl.cfg.CommandExecutorImpl;
-import org.flowable.engine.impl.db.DbSqlSessionFactory;
 import org.flowable.engine.impl.history.AbstractHistoryManager;
 import org.flowable.engine.impl.history.HistoryLevel;
-import org.flowable.engine.impl.interceptor.CommandInterceptor;
 import org.flowable.engine.impl.test.PluggableFlowableTestCase;
 import org.flowable.engine.repository.Deployment;
 import org.flowable.engine.task.Task;
@@ -74,6 +74,9 @@ public class VerifyDatabaseOperationsTest extends PluggableFlowableTestCase {
         // Add dbsqlSession factory that captures CRUD operations
         this.oldDbSqlSessionFactory = processEngineConfiguration.getDbSqlSessionFactory();
         DbSqlSessionFactory newDbSqlSessionFactory = new ProfilingDbSqlSessionFactory();
+        newDbSqlSessionFactory.setBulkInserteableEntityClasses(oldDbSqlSessionFactory.getBulkInserteableEntityClasses());
+        newDbSqlSessionFactory.setInsertionOrder(oldDbSqlSessionFactory.getInsertionOrder());
+        newDbSqlSessionFactory.setDeletionOrder(oldDbSqlSessionFactory.getDeletionOrder());
         newDbSqlSessionFactory.setDatabaseType(oldDbSqlSessionFactory.getDatabaseType());
         newDbSqlSessionFactory.setDatabaseTablePrefix(oldDbSqlSessionFactory.getDatabaseTablePrefix());
         newDbSqlSessionFactory.setTablePrefixIsSchema(oldDbSqlSessionFactory.isTablePrefixIsSchema());
@@ -83,7 +86,7 @@ public class VerifyDatabaseOperationsTest extends PluggableFlowableTestCase {
         newDbSqlSessionFactory.setIdGenerator(oldDbSqlSessionFactory.getIdGenerator());
         newDbSqlSessionFactory.setDbHistoryUsed(oldDbSqlSessionFactory.isDbHistoryUsed());
         newDbSqlSessionFactory.setDatabaseSpecificStatements(oldDbSqlSessionFactory.getDatabaseSpecificStatements());
-        newDbSqlSessionFactory.setBulkInsertableMap(oldDbSqlSessionFactory.getBulkInsertableMap());
+        newDbSqlSessionFactory.setBulkInserteableEntityClasses(oldDbSqlSessionFactory.getBulkInserteableEntityClasses());
         processEngineConfiguration.addSessionFactory(newDbSqlSessionFactory);
     }
 
@@ -328,7 +331,7 @@ public class VerifyDatabaseOperationsTest extends PluggableFlowableTestCase {
             assertExecutedCommands("StartProcessInstanceCmd", "org.flowable.engine.impl.TaskQueryImpl", "ClaimTaskCmd", "CompleteTaskCmd");
     
             assertNoDeletes("ClaimTaskCmd");
-            assertDatabaseInserts("ClaimTaskCmd", "HistoricIdentityLinkEntityImpl-bulk-with-2", 1L, "IdentityLinkEntityImpl", 1L, "HistoricIdentityLinkEntityImpl", 1L);
+            assertDatabaseInserts("ClaimTaskCmd", "CommentEntityImpl", 2L, "HistoricIdentityLinkEntityImpl-bulk-with-2", 1L, "IdentityLinkEntityImpl", 1L, "HistoricIdentityLinkEntityImpl", 1L);
         }
     }
 
@@ -420,7 +423,7 @@ public class VerifyDatabaseOperationsTest extends PluggableFlowableTestCase {
     }
 
     private Map<String, Object> createVariables(long count, String prefix) {
-        Map<String, Object> vars = new HashMap<String, Object>();
+        Map<String, Object> vars = new HashMap<>();
         for (int i = 0; i < count; i++) {
             vars.put(prefix + "_var0" + i, prefix + "+values0" + i);
         }

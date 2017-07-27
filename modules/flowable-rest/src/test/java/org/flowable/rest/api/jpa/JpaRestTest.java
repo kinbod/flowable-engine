@@ -12,8 +12,6 @@
  */
 package org.flowable.rest.api.jpa;
 
-import com.fasterxml.jackson.databind.JsonNode;
-
 import java.util.HashMap;
 import java.util.Map;
 
@@ -26,6 +24,8 @@ import org.flowable.engine.test.Deployment;
 import org.flowable.rest.api.jpa.model.Message;
 import org.flowable.rest.service.api.RestUrls;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
 public class JpaRestTest extends BaseJPARestTestCase {
 
     @Deployment(resources = { "org/flowable/rest/api/jpa/jpa-process.bpmn20.xml" })
@@ -37,7 +37,7 @@ public class JpaRestTest extends BaseJPARestTestCase {
         assertEquals("Hello World", message.getText());
 
         // add the entity to the process variables and start the process
-        Map<String, Object> processVariables = new HashMap<String, Object>();
+        Map<String, Object> processVariables = new HashMap<>();
         processVariables.put("message", message);
 
         ProcessInstance processInstance = processEngine.getRuntimeService().startProcessInstanceByKey("jpa-process", processVariables);
@@ -69,7 +69,7 @@ public class JpaRestTest extends BaseJPARestTestCase {
         assertEquals("Hello World", message.getText());
 
         // add the entity to the process variables and start the process
-        Map<String, Object> processVariables = new HashMap<String, Object>();
+        Map<String, Object> processVariables = new HashMap<>();
         processVariables.put("message", message);
 
         ProcessInstance processInstance = processEngine.getRuntimeService().startProcessInstanceByKey("jpa-process", processVariables);
@@ -105,7 +105,7 @@ public class JpaRestTest extends BaseJPARestTestCase {
         assertEquals("Hello World", message.getText());
 
         // add the entity to the process variables and start the process
-        Map<String, Object> processVariables = new HashMap<String, Object>();
+        Map<String, Object> processVariables = new HashMap<>();
         processVariables.put("message", message);
 
         ProcessInstance processInstance = processEngine.getRuntimeService().startProcessInstanceByKey("jpa-process", processVariables);
@@ -141,7 +141,7 @@ public class JpaRestTest extends BaseJPARestTestCase {
         assertEquals("Hello World", message.getText());
 
         // add the entity to the process variables and start the process
-        Map<String, Object> processVariables = new HashMap<String, Object>();
+        Map<String, Object> processVariables = new HashMap<>();
         processVariables.put("message", message);
 
         ProcessInstance processInstance = processEngine.getRuntimeService().startProcessInstanceByKey("jpa-process", processVariables);

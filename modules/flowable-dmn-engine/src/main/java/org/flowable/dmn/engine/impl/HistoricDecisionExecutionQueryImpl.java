@@ -18,9 +18,10 @@ import java.util.Set;
 
 import org.flowable.dmn.api.DmnHistoricDecisionExecution;
 import org.flowable.dmn.api.DmnHistoricDecisionExecutionQuery;
-import org.flowable.dmn.engine.impl.interceptor.CommandContext;
-import org.flowable.dmn.engine.impl.interceptor.CommandExecutor;
+import org.flowable.dmn.engine.impl.util.CommandContextUtil;
 import org.flowable.engine.common.api.FlowableIllegalArgumentException;
+import org.flowable.engine.common.impl.interceptor.CommandContext;
+import org.flowable.engine.common.impl.interceptor.CommandExecutor;
 
 /**
  * @author Tijs Rademakers
@@ -31,10 +32,12 @@ public class HistoricDecisionExecutionQueryImpl extends AbstractQuery<DmnHistori
     protected String id;
     protected Set<String> ids;
     protected String decisionDefinitionId;
+    protected String deploymentId;
     protected String decisionKey;
     protected String instanceId;
     protected String executionId;
     protected String activityId;
+    protected Boolean failed;
     protected String tenantId;
     protected String tenantIdLike;
     protected boolean withoutTenantId;
@@ -69,6 +72,14 @@ public class HistoricDecisionExecutionQueryImpl extends AbstractQuery<DmnHistori
         return this;
     }
     
+    public DmnHistoricDecisionExecutionQuery deploymentId(String deploymentId) {
+        if (deploymentId == null) {
+            throw new FlowableIllegalArgumentException("deploymentId is null");
+        }
+        this.deploymentId = deploymentId;
+        return this;
+    }
+    
     public DmnHistoricDecisionExecutionQuery decisionKey(String decisionKey) {
         if (decisionKey == null) {
             throw new FlowableIllegalArgumentException("decisionKey is null");
@@ -98,6 +109,14 @@ public class HistoricDecisionExecutionQueryImpl extends AbstractQuery<DmnHistori
             throw new FlowableIllegalArgumentException("activityId is null");
         }
         this.activityId = activityId;
+        return this;
+    }
+    
+    public DmnHistoricDecisionExecutionQuery failed(Boolean failed) {
+        if (failed == null) {
+            throw new FlowableIllegalArgumentException("failed is null");
+        }
+        this.failed = failed;
         return this;
     }
 
@@ -140,12 +159,12 @@ public class HistoricDecisionExecutionQueryImpl extends AbstractQuery<DmnHistori
 
     public long executeCount(CommandContext commandContext) {
         checkQueryOk();
-        return commandContext.getHistoricDecisionExecutionEntityManager().findHistoricDecisionExecutionCountByQueryCriteria(this);
+        return CommandContextUtil.getHistoricDecisionExecutionEntityManager().findHistoricDecisionExecutionCountByQueryCriteria(this);
     }
 
     public List<DmnHistoricDecisionExecution> executeList(CommandContext commandContext) {
         checkQueryOk();
-        return commandContext.getHistoricDecisionExecutionEntityManager().findHistoricDecisionExecutionsByQueryCriteria(this);
+        return CommandContextUtil.getHistoricDecisionExecutionEntityManager().findHistoricDecisionExecutionsByQueryCriteria(this);
     }
 
     public void checkQueryOk() {
@@ -166,6 +185,10 @@ public class HistoricDecisionExecutionQueryImpl extends AbstractQuery<DmnHistori
         return decisionDefinitionId;
     }
     
+    public String getDeploymentId() {
+        return deploymentId;
+    }
+    
     public String getDecisionKey() {
         return decisionKey;
     }
@@ -180,6 +203,10 @@ public class HistoricDecisionExecutionQueryImpl extends AbstractQuery<DmnHistori
 
     public String getActivityId() {
         return activityId;
+    }
+    
+    public Boolean getFailed() {
+        return failed;
     }
     
     public String getTenantId() {
