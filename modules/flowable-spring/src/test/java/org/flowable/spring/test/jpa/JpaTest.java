@@ -5,8 +5,8 @@ import java.util.Map;
 
 import org.flowable.engine.repository.Deployment;
 import org.flowable.engine.runtime.ProcessInstance;
-import org.flowable.engine.task.Task;
 import org.flowable.spring.impl.test.SpringFlowableTestCase;
+import org.flowable.task.service.Task;
 import org.springframework.test.context.ContextConfiguration;
 
 /**
@@ -98,6 +98,7 @@ public class JpaTest extends SpringFlowableTestCase {
             repositoryService.createDeployment().addClasspathResource(pd).deploy();
     }
 
+    @Override
     protected void deleteDeployments() {
         for (Deployment deployment : repositoryService.createDeploymentQuery().list()) {
             repositoryService.deleteDeployment(deployment.getId(), true);

@@ -253,6 +253,12 @@ public class BpmnJsonConverter implements EditorJsonConstants, StencilConstants,
         if (StringUtils.isNoneEmpty(model.getTargetNamespace())) {
             propertiesNode.put(PROPERTY_PROCESS_NAMESPACE, model.getTargetNamespace());
         }
+        if (CollectionUtils.isNotEmpty(mainProcess.getCandidateStarterGroups())) {
+            propertiesNode.put(PROPERTY_PROCESS_POTENTIALSTARTERGROUP, StringUtils.join(mainProcess.getCandidateStarterGroups(), ","));
+        }
+        if (CollectionUtils.isNotEmpty(mainProcess.getCandidateStarterUsers())) {
+            propertiesNode.put(PROPERTY_PROCESS_POTENTIALSTARTERUSER, StringUtils.join(mainProcess.getCandidateStarterUsers(), ","));
+        }
 
         BpmnJsonConverterUtil.convertMessagesToJson(model.getMessages(), propertiesNode);
 
@@ -378,6 +384,7 @@ public class BpmnJsonConverter implements EditorJsonConstants, StencilConstants,
         return modelNode;
     }
 
+    @Override
     public void processFlowElements(FlowElementsContainer container, BpmnModel model, ArrayNode shapesArrayNode,
             Map<String, ModelInfo> formKeyMap, Map<String, ModelInfo> decisionTableKeyMap, double subProcessX, double subProcessY) {
 
@@ -666,6 +673,7 @@ public class BpmnJsonConverter implements EditorJsonConstants, StencilConstants,
         return bpmnModel;
     }
 
+    @Override
     public void processJsonElements(JsonNode shapesArrayNode, JsonNode modelNode, BaseElement parentElement, Map<String, JsonNode> shapeMap,
             Map<String, String> formMap, Map<String, String> decisionTableMap, BpmnModel bpmnModel) {
 

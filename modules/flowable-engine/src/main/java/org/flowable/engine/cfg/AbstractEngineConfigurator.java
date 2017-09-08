@@ -94,7 +94,13 @@ public abstract class AbstractEngineConfigurator implements ProcessEngineConfigu
         String cfgPath = getMybatisCfgPath();
         if (cfgPath != null) {
             Set<String> resources = new HashSet<>();
-            try (InputStream inputStream = this.getClass().getClassLoader().getResourceAsStream(cfgPath)) {
+            
+            ClassLoader classLoader = processEngineConfiguration.getClassLoader();
+            if (classLoader == null) {
+                classLoader = this.getClass().getClassLoader();
+            }
+            
+            try (InputStream inputStream = classLoader.getResourceAsStream(cfgPath)) {
                 DocumentBuilderFactory docBuilderFactory = createDocumentBuilderFactory();
                 DocumentBuilder docBuilder = docBuilderFactory.newDocumentBuilder();
                 Document document = docBuilder.parse(inputStream);
@@ -143,23 +149,37 @@ public abstract class AbstractEngineConfigurator implements ProcessEngineConfigu
         return null;
     }
 
-    protected void initialiseCommonProperties(ProcessEngineConfigurationImpl processEngineConfiguration, AbstractEngineConfiguration targetEngineConfiguration, String engineKey) {
-        initEngineConfigurations(processEngineConfiguration, targetEngineConfiguration, engineKey);
+    protected void initialiseCommonProperties(ProcessEngineConfigurationImpl processEngineConfiguration, AbstractEngineConfiguration targetEngineConfiguration) {
+        initEngineConfigurations(processEngineConfiguration, targetEngineConfiguration);
+        initServiceConfigurations(processEngineConfiguration, targetEngineConfiguration);
         initCommandContextFactory(processEngineConfiguration, targetEngineConfiguration);
-        initDataSource(processEngineConfiguration, targetEngineConfiguration);
-        initDbSqlSessionFactory(processEngineConfiguration, targetEngineConfiguration);
+        initIdGenerator(processEngineConfiguration, targetEngineConfiguration);
+        
+        if (targetEngineConfiguration.isUsingRelationalDatabase()) {
+            initDataSource(processEngineConfiguration, targetEngineConfiguration);
+            initDbSqlSessionFactory(processEngineConfiguration, targetEngineConfiguration);
+            initDbProperties(processEngineConfiguration, targetEngineConfiguration);
+        }
+        
         initSessionFactories(processEngineConfiguration, targetEngineConfiguration);
-        initDbProperties(processEngineConfiguration, targetEngineConfiguration);
         initEventDispatcher(processEngineConfiguration, targetEngineConfiguration);
         initClock(processEngineConfiguration, targetEngineConfiguration);
     }
 
-    protected void initEngineConfigurations(ProcessEngineConfigurationImpl processEngineConfiguration, AbstractEngineConfiguration targetEngineConfiguration, String engineKey) {
+    protected void initEngineConfigurations(ProcessEngineConfigurationImpl processEngineConfiguration, AbstractEngineConfiguration targetEngineConfiguration) {
         targetEngineConfiguration.setEngineConfigurations(processEngineConfiguration.getEngineConfigurations());
+    }
+    
+    protected void initServiceConfigurations(ProcessEngineConfigurationImpl processEngineConfiguration, AbstractEngineConfiguration targetEngineConfiguration) {
+        targetEngineConfiguration.setServiceConfigurations(processEngineConfiguration.getServiceConfigurations());
     }
 
     protected void initCommandContextFactory(ProcessEngineConfigurationImpl processEngineConfiguration, AbstractEngineConfiguration targetEngineConfiguration) {
         targetEngineConfiguration.setCommandContextFactory(processEngineConfiguration.getCommandContextFactory());
+    }
+    
+    protected void initIdGenerator(ProcessEngineConfigurationImpl processEngineConfiguration, AbstractEngineConfiguration targetEngineConfiguration) {
+        targetEngineConfiguration.setIdGenerator(processEngineConfiguration.getIdGenerator());
     }
 
     protected void initDataSource(ProcessEngineConfigurationImpl processEngineConfiguration,

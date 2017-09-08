@@ -23,19 +23,15 @@ import org.flowable.editor.form.converter.FormJsonConverter;
 import org.flowable.engine.common.AbstractEngineConfiguration;
 import org.flowable.engine.common.api.FlowableException;
 import org.flowable.engine.common.impl.cfg.BeansConfigurationHelper;
-import org.flowable.engine.common.impl.cfg.standalone.StandaloneMybatisTransactionContextFactory;
 import org.flowable.engine.common.impl.db.DbSqlSessionFactory;
-import org.flowable.engine.common.impl.interceptor.CommandContextFactory;
-import org.flowable.engine.common.impl.interceptor.CommandContextInterceptor;
 import org.flowable.engine.common.impl.interceptor.CommandInterceptor;
-import org.flowable.engine.common.impl.interceptor.DefaultCommandInvoker;
 import org.flowable.engine.common.impl.interceptor.EngineConfigurationConstants;
-import org.flowable.engine.common.impl.interceptor.LogInterceptor;
 import org.flowable.engine.common.impl.interceptor.SessionFactory;
-import org.flowable.engine.common.impl.interceptor.TransactionContextInterceptor;
 import org.flowable.engine.common.impl.persistence.GenericManagerFactory;
 import org.flowable.engine.common.impl.persistence.cache.EntityCache;
 import org.flowable.engine.common.impl.persistence.cache.EntityCacheImpl;
+import org.flowable.engine.common.impl.persistence.deploy.DefaultDeploymentCache;
+import org.flowable.engine.common.impl.persistence.deploy.DeploymentCache;
 import org.flowable.engine.common.impl.persistence.entity.Entity;
 import org.flowable.form.api.FormEngineConfigurationApi;
 import org.flowable.form.api.FormManagementService;
@@ -56,9 +52,7 @@ import org.flowable.form.engine.impl.deployer.FormDefinitionDeploymentHelper;
 import org.flowable.form.engine.impl.deployer.ParsedDeploymentBuilderFactory;
 import org.flowable.form.engine.impl.el.ExpressionManager;
 import org.flowable.form.engine.impl.parser.FormDefinitionParseFactory;
-import org.flowable.form.engine.impl.persistence.deploy.DefaultDeploymentCache;
 import org.flowable.form.engine.impl.persistence.deploy.Deployer;
-import org.flowable.form.engine.impl.persistence.deploy.DeploymentCache;
 import org.flowable.form.engine.impl.persistence.deploy.DeploymentManager;
 import org.flowable.form.engine.impl.persistence.deploy.FormDefinitionCacheEntry;
 import org.flowable.form.engine.impl.persistence.entity.FormDefinitionEntityManager;
@@ -198,7 +192,11 @@ public class FormEngineConfiguration extends AbstractEngineConfiguration impleme
 
         initBeans();
         initTransactionFactory();
-        initSqlSessionFactory();
+        
+        if (usingRelationalDatabase) {
+            initSqlSessionFactory();
+        }
+        
         initSessionFactories();
         initServices();
         initDataManagers();
@@ -329,6 +327,7 @@ public class FormEngineConfiguration extends AbstractEngineConfiguration impleme
         }
     }
 
+    @Override
     public void initDbSqlSessionFactory() {
         if (dbSqlSessionFactory == null) {
             dbSqlSessionFactory = createDbSqlSessionFactory();
@@ -344,6 +343,7 @@ public class FormEngineConfiguration extends AbstractEngineConfiguration impleme
         initDbSqlSessionFactoryEntitySettings();
     }
     
+    @Override
     protected void initDbSqlSessionFactoryEntitySettings() {
         for (Class<? extends Entity> clazz : EntityDependencyOrder.INSERT_ORDER) {
             dbSqlSessionFactory.getInsertionOrder().add(clazz);
@@ -354,6 +354,7 @@ public class FormEngineConfiguration extends AbstractEngineConfiguration impleme
         }
     }
 
+    @Override
     public DbSqlSessionFactory createDbSqlSessionFactory() {
         return new DbSqlSessionFactory();
     }
@@ -361,6 +362,7 @@ public class FormEngineConfiguration extends AbstractEngineConfiguration impleme
     // command executors
     // ////////////////////////////////////////////////////////
 
+    @Override
     public void initCommandExecutors() {
         initDefaultCommandConfig();
         initSchemaCommandConfig();
@@ -369,12 +371,7 @@ public class FormEngineConfiguration extends AbstractEngineConfiguration impleme
         initCommandExecutor();
     }
 
-    public void initCommandInvoker() {
-        if (commandInvoker == null) {
-            commandInvoker = new DefaultCommandInvoker();
-        }
-    }
-
+    @Override
     public void initCommandInterceptors() {
         if (commandInterceptors == null) {
             commandInterceptors = new ArrayList<>();
@@ -389,33 +386,12 @@ public class FormEngineConfiguration extends AbstractEngineConfiguration impleme
         }
     }
 
-    public Collection<? extends CommandInterceptor> getDefaultCommandInterceptors() {
-        if (defaultCommandInterceptors == null) {
-            List<CommandInterceptor> interceptors = new ArrayList<>();
-            interceptors.add(new LogInterceptor());
-            
-            CommandInterceptor transactionInterceptor = createTransactionInterceptor();
-            if (transactionInterceptor != null) {
-                interceptors.add(transactionInterceptor);
-            }
-         
-            if (commandContextFactory != null) {
-                CommandContextInterceptor commandContextInterceptor = new CommandContextInterceptor(commandContextFactory);
-                engineConfigurations.put(EngineConfigurationConstants.KEY_FORM_ENGINE_CONFIG, this);
-                commandContextInterceptor.setEngineConfigurations(engineConfigurations);
-                commandContextInterceptor.setCurrentEngineConfigurationKey(EngineConfigurationConstants.KEY_FORM_ENGINE_CONFIG);
-                interceptors.add(commandContextInterceptor);
-            }
-            
-            if (transactionContextFactory != null) {
-                interceptors.add(new TransactionContextInterceptor(transactionContextFactory));
-            }
-            
-            defaultCommandInterceptors = interceptors;
-        }
-        return defaultCommandInterceptors;
+    @Override
+    public String getEngineCfgKey() {
+        return EngineConfigurationConstants.KEY_FORM_ENGINE_CONFIG;
     }
 
+    @Override
     public CommandInterceptor createTransactionInterceptor() {
         return null;
     }
@@ -489,24 +465,10 @@ public class FormEngineConfiguration extends AbstractEngineConfiguration impleme
         }
     }
 
-    // OTHER
-    // ////////////////////////////////////////////////////////////////////
-
-    public void initCommandContextFactory() {
-        if (commandContextFactory == null) {
-            commandContextFactory = new CommandContextFactory();
-        }
-    }
-
-    public void initTransactionContextFactory() {
-        if (transactionContextFactory == null) {
-            transactionContextFactory = new StandaloneMybatisTransactionContextFactory();
-        }
-    }
-
     // myBatis SqlSessionFactory
     // ////////////////////////////////////////////////
 
+    @Override
     public InputStream getMyBatisXmlConfigurationStream() {
         return getResourceAsStream(DEFAULT_MYBATIS_MAPPING_FILE);
     }
@@ -514,6 +476,7 @@ public class FormEngineConfiguration extends AbstractEngineConfiguration impleme
     // getters and setters
     // //////////////////////////////////////////////////////
 
+    @Override
     public String getEngineName() {
         return formEngineName;
     }
@@ -523,6 +486,7 @@ public class FormEngineConfiguration extends AbstractEngineConfiguration impleme
         return this;
     }
 
+    @Override
     public FormManagementService getFormManagementService() {
         return formManagementService;
     }
@@ -532,6 +496,7 @@ public class FormEngineConfiguration extends AbstractEngineConfiguration impleme
         return this;
     }
 
+    @Override
     public FormRepositoryService getFormRepositoryService() {
         return formRepositoryService;
     }
@@ -541,6 +506,7 @@ public class FormEngineConfiguration extends AbstractEngineConfiguration impleme
         return this;
     }
 
+    @Override
     public FormService getFormService() {
         return formService;
     }

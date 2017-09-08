@@ -13,7 +13,6 @@
 package org.flowable.form.spring.configurator;
 
 import org.flowable.engine.common.api.FlowableException;
-import org.flowable.engine.common.impl.interceptor.EngineConfigurationConstants;
 import org.flowable.engine.impl.cfg.ProcessEngineConfigurationImpl;
 import org.flowable.form.engine.FormEngine;
 import org.flowable.form.engine.configurator.FormEngineConfigurator;
@@ -33,12 +32,13 @@ public class SpringFormEngineConfigurator extends FormEngineConfigurator {
         if (formEngineConfiguration == null) {
             formEngineConfiguration = new SpringFormEngineConfiguration();
         }
-        initialiseCommonProperties(processEngineConfiguration, formEngineConfiguration, EngineConfigurationConstants.KEY_FORM_ENGINE_CONFIG);
+        initialiseCommonProperties(processEngineConfiguration, formEngineConfiguration);
         formEngineConfiguration.setTransactionManager(((SpringProcessEngineConfiguration) processEngineConfiguration).getTransactionManager());
 
         initFormEngine();
     }
 
+    @Override
     protected synchronized FormEngine initFormEngine() {
         if (formEngineConfiguration == null) {
             throw new FlowableException("FormEngineConfiguration is required");
@@ -47,6 +47,7 @@ public class SpringFormEngineConfigurator extends FormEngineConfigurator {
         return formEngineConfiguration.buildFormEngine();
     }
 
+    @Override
     public SpringFormEngineConfiguration getFormEngineConfiguration() {
         return formEngineConfiguration;
     }

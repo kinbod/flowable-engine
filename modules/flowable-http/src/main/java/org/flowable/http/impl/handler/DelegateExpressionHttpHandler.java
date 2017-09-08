@@ -17,7 +17,7 @@ import java.util.List;
 import org.apache.http.client.HttpClient;
 import org.flowable.engine.common.api.FlowableIllegalArgumentException;
 import org.flowable.engine.delegate.DelegateExecution;
-import org.flowable.engine.delegate.Expression;
+import org.flowable.variable.service.delegate.Expression;
 import org.flowable.engine.impl.bpmn.helper.DelegateExpressionUtil;
 import org.flowable.engine.impl.bpmn.parser.FieldDeclaration;
 import org.flowable.engine.impl.util.CommandContextUtil;
@@ -43,6 +43,7 @@ public class DelegateExpressionHttpHandler implements HttpRequestHandler, HttpRe
         this.fieldDeclarations = fieldDeclarations;
     }
 
+    @Override
     public void handleHttpRequest(DelegateExecution execution, HttpRequest httpRequest, HttpClient client) {
         Object delegate = DelegateExpressionUtil.resolveDelegateExpression(expression, execution, fieldDeclarations);
         if (delegate instanceof HttpRequestHandler) {
@@ -53,6 +54,7 @@ public class DelegateExpressionHttpHandler implements HttpRequestHandler, HttpRe
         }
     }
     
+    @Override
     public void handleHttpResponse(DelegateExecution execution, HttpResponse httpResponse) {
         Object delegate = DelegateExpressionUtil.resolveDelegateExpression(expression, execution, fieldDeclarations);
         if (delegate instanceof HttpResponseHandler) {

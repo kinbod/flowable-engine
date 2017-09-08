@@ -31,12 +31,13 @@ import org.flowable.engine.common.impl.javax.el.ExpressionFactory;
 import org.flowable.engine.common.impl.javax.el.ListELResolver;
 import org.flowable.engine.common.impl.javax.el.MapELResolver;
 import org.flowable.engine.common.impl.javax.el.ValueExpression;
-import org.flowable.engine.delegate.Expression;
-import org.flowable.engine.delegate.VariableScope;
 import org.flowable.engine.impl.bpmn.data.ItemInstance;
 import org.flowable.engine.impl.delegate.invocation.DefaultDelegateInterceptor;
 import org.flowable.engine.impl.interceptor.DelegateInterceptor;
-import org.flowable.engine.impl.persistence.entity.VariableScopeImpl;
+import org.flowable.variable.service.delegate.Expression;
+import org.flowable.variable.service.delegate.VariableScope;
+import org.flowable.variable.service.impl.el.ExpressionManager;
+import org.flowable.variable.service.impl.persistence.entity.VariableScopeImpl;
 
 /**
  * <p>
@@ -102,6 +103,7 @@ public class DefaultExpressionManager implements ExpressionManager {
         this.expressionFactory = expressionFactory;
     }
 
+    @Override
     public ELContext getElContext(VariableScope variableScope) {
         ELContext elContext = null;
         if (variableScope instanceof VariableScopeImpl) {
@@ -143,18 +145,22 @@ public class DefaultExpressionManager implements ExpressionManager {
         return elResolver;
     }
 
+    @Override
     public Map<Object, Object> getBeans() {
         return beans;
     }
 
+    @Override
     public void setBeans(Map<Object, Object> beans) {
         this.beans = beans;
     }
 
+    @Override
     public List<FlowableFunctionDelegate> getFunctionDelegates() {
         return functionDelegates;
     }
 
+    @Override
     public void setFunctionDelegates(List<FlowableFunctionDelegate> functionDelegates) {
         this.functionDelegates = functionDelegates;
     }

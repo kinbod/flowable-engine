@@ -21,10 +21,10 @@ import java.util.Map;
 
 import org.flowable.engine.ProcessEngineConfiguration;
 import org.flowable.engine.common.api.FlowableException;
+import org.flowable.engine.common.api.delegate.event.FlowableEngineEventType;
 import org.flowable.engine.common.impl.interceptor.Command;
 import org.flowable.engine.common.impl.interceptor.CommandContext;
 import org.flowable.engine.compatibility.Flowable5CompatibilityHandler;
-import org.flowable.engine.delegate.event.FlowableEngineEventType;
 import org.flowable.engine.delegate.event.impl.FlowableEventBuilder;
 import org.flowable.engine.impl.DeploymentQueryImpl;
 import org.flowable.engine.impl.cfg.ProcessEngineConfigurationImpl;
@@ -49,6 +49,7 @@ public class DeployCmd<T> implements Command<Deployment>, Serializable {
         this.deploymentBuilder = deploymentBuilder;
     }
 
+    @Override
     public Deployment execute(CommandContext commandContext) {
 
         // Backwards compatibility with v5
@@ -79,10 +80,12 @@ public class DeployCmd<T> implements Command<Deployment>, Serializable {
             if (deployment.getTenantId() == null || ProcessEngineConfiguration.NO_TENANT_ID.equals(deployment.getTenantId())) {
                 List<Deployment> deploymentEntities = new DeploymentQueryImpl(processEngineConfiguration.getCommandExecutor())
                         .deploymentName(deployment.getName())
+                        .orderByDeploymenTime().desc()
                         .listPage(0, 1);
                 if (!deploymentEntities.isEmpty()) {
                     existingDeployments.add(deploymentEntities.get(0));
                 }
+                
             } else {
                 List<Deployment> deploymentList = processEngineConfiguration.getRepositoryService().createDeploymentQuery().deploymentName(deployment.getName())
                         .deploymentTenantId(deployment.getTenantId()).orderByDeploymentId().desc().list();

@@ -16,7 +16,6 @@ import org.flowable.content.engine.ContentEngine;
 import org.flowable.content.engine.configurator.ContentEngineConfigurator;
 import org.flowable.content.spring.SpringContentEngineConfiguration;
 import org.flowable.engine.common.api.FlowableException;
-import org.flowable.engine.common.impl.interceptor.EngineConfigurationConstants;
 import org.flowable.engine.impl.cfg.ProcessEngineConfigurationImpl;
 import org.flowable.spring.SpringProcessEngineConfiguration;
 
@@ -33,12 +32,13 @@ public class SpringContentEngineConfigurator extends ContentEngineConfigurator {
         if (contentEngineConfiguration == null) {
             contentEngineConfiguration = new SpringContentEngineConfiguration();
         }
-        initialiseCommonProperties(processEngineConfiguration, contentEngineConfiguration, EngineConfigurationConstants.KEY_CONTENT_ENGINE_CONFIG);
+        initialiseCommonProperties(processEngineConfiguration, contentEngineConfiguration);
         contentEngineConfiguration.setTransactionManager(((SpringProcessEngineConfiguration) processEngineConfiguration).getTransactionManager());
         
         initContentEngine();
     }
 
+    @Override
     protected synchronized ContentEngine initContentEngine() {
         if (contentEngineConfiguration == null) {
             throw new FlowableException("ContentEngineConfiguration is required");
@@ -47,6 +47,7 @@ public class SpringContentEngineConfigurator extends ContentEngineConfigurator {
         return contentEngineConfiguration.buildContentEngine();
     }
 
+    @Override
     public SpringContentEngineConfiguration getContentEngineConfiguration() {
         return contentEngineConfiguration;
     }

@@ -22,6 +22,10 @@ import org.flowable.engine.common.impl.persistence.entity.Entity;
 import org.flowable.engine.delegate.DelegateExecution;
 import org.flowable.engine.runtime.Execution;
 import org.flowable.engine.runtime.ProcessInstance;
+import org.flowable.identitylink.service.impl.persistence.entity.IdentityLinkEntity;
+import org.flowable.job.service.impl.persistence.entity.JobEntity;
+import org.flowable.job.service.impl.persistence.entity.TimerJobEntity;
+import org.flowable.task.service.impl.persistence.entity.TaskEntity;
 
 /**
  * @author Tom Baeyens
@@ -49,6 +53,7 @@ public interface ExecutionEntity extends DelegateExecution, Execution, ProcessIn
 
     void setProcessInstance(ExecutionEntity processInstance);
 
+    @Override
     ExecutionEntity getParent();
 
     void setParent(ExecutionEntity parent);
@@ -67,6 +72,7 @@ public interface ExecutionEntity extends DelegateExecution, Execution, ProcessIn
 
     void setRootProcessInstance(ExecutionEntity rootProcessInstance);
 
+    @Override
     List<? extends ExecutionEntity> getExecutions();
 
     void addChildExecution(ExecutionEntity executionEntity);
@@ -87,6 +93,7 @@ public interface ExecutionEntity extends DelegateExecution, Execution, ProcessIn
 
     void setEnded(boolean isEnded);
 
+    @Override
     void setEventName(String eventName);
 
     String getDeleteReason();
@@ -101,8 +108,10 @@ public interface ExecutionEntity extends DelegateExecution, Execution, ProcessIn
 
     void setEventScope(boolean isEventScope);
 
+    @Override
     boolean isMultiInstanceRoot();
 
+    @Override
     void setMultiInstanceRoot(boolean isMultiInstanceRoot);
 
     void setName(String name);
@@ -119,8 +128,10 @@ public interface ExecutionEntity extends DelegateExecution, Execution, ProcessIn
 
     void setLockTime(Date lockTime);
 
+    @Override
     boolean isDeleted();
 
+    @Override
     void setDeleted(boolean isDeleted);
 
     void forceUpdate();
@@ -129,12 +140,22 @@ public interface ExecutionEntity extends DelegateExecution, Execution, ProcessIn
 
     void setStartActivityId(String startActivityId);
 
+    @Override
     String getStartUserId();
 
     void setStartUserId(String startUserId);
 
+    @Override
     Date getStartTime();
 
     void setStartTime(Date startTime);
+    
+    void setCallbackId(String callbackId);
+    
+    void setCallbackType(String callbackType);
+    
+    void setVariable(String variableName, Object value, ExecutionEntity sourceExecution, boolean fetchAllVariables);
+    
+    Object setVariableLocal(String variableName, Object value, ExecutionEntity sourceExecution, boolean fetchAllVariables);
 
 }

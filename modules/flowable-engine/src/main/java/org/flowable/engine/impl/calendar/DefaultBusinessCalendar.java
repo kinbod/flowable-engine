@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.flowable.engine.common.api.FlowableIllegalArgumentException;
+import org.flowable.engine.common.impl.calendar.BusinessCalendar;
 import org.flowable.engine.impl.util.CommandContextUtil;
 
 /**
@@ -50,6 +51,7 @@ public class DefaultBusinessCalendar implements BusinessCalendar {
         return resolveDuedate(duedateDescription);
     }
 
+    @Override
     public Date resolveDuedate(String duedate) {
         Date resolvedDuedate = CommandContextUtil.getProcessEngineConfiguration().getClock().getCurrentTime();
 
